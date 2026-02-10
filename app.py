@@ -78,7 +78,7 @@ st.markdown("""
 <style>
 /* Background - Textured Shining Black */
 [data-testid="stAppViewContainer"] {
-    background: #000000;
+    background: var(--background-color);
     position: relative;
     overflow: hidden;
     min-height: 100vh;
@@ -135,7 +135,7 @@ st.markdown("""
 }
 
 [data-testid="stSidebarNav"] {
-    background: linear-gradient(180deg, rgba(6,6,6,1) 0%, rgba(12,12,12,0.98) 100%);
+    background: var(--secondary-background-color);
     border-right: 1px solid rgba(255,255,255,0.02);
 }
 
@@ -161,7 +161,7 @@ h1, h2, h3, h4, h5, h6 {
 .home-title {
     font-size: 32px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-color);
     margin: 0;
     font-family: 'Poppins', sans-serif;
     letter-spacing: -0.5px;
@@ -169,7 +169,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .home-subtitle {
     font-size: 14px;
-    color: #b0b0b0;
+    color: var(--text-color);
+    opacity: 0.8;
     max-width: 650px;
     line-height: 1.6;
     margin-top: 8px;
@@ -179,14 +180,14 @@ h1, h2, h3, h4, h5, h6 {
 .home-what {
     font-size: 18px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-color);
     margin-top: 28px;
     margin-bottom: 18px;
 }
 
 /* Home Cards - Compact Black Theme */
 .home-card {
-    background: linear-gradient(145deg, rgba(20, 20, 20, 0.95), rgba(10, 10, 10, 0.7));
+    background: var(--secondary-background-color);
     border: 1px solid rgba(80, 80, 80, 0.25);
     border-radius: 12px;
     padding: 22px;
@@ -213,10 +214,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .home-card:hover {
-    border-color: rgba(150, 150, 150, 0.4);
+    border-color: var(--primary-color);
     transform: translateY(-6px);
-    background: linear-gradient(145deg, rgba(30, 30, 30, 1), rgba(15, 15, 15, 0.9));
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(100, 100, 100, 0.15);
+    background: var(--secondary-background-color);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 20px 40px rgba(0, 0, 0, 0.2), 0 0 20px rgba(100, 100, 100, 0.15);
     cursor: pointer;
 }
 
@@ -226,7 +227,7 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 .home-card-icon {
     font-size: 16px;
     margin-right: 8px;
-    color: #90ee90;
+    color: var(--primary-color);
 }
 
 .home-card-header {
@@ -238,14 +239,15 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 .home-card-title {
     font-size: 18px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-color);
     font-family: 'Poppins', sans-serif;
     margin: 0;
 }
 
 .home-card-desc {
     font-size: 13px;
-    color: #cbd5d1;
+    color: var(--text-color);
+    opacity: 0.8;
     line-height: 1.55;
     margin-bottom: 14px;
     flex-grow: 1;
@@ -257,7 +259,7 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
     align-items: center;
     font-size: 13px;
     font-weight: 600;
-    color: #a8f3b0;
+    color: var(--primary-color);
     padding: 8px 0;
     border-top: 1px solid rgba(80, 80, 80, 0.15);
     margin-top: 2px;
@@ -269,7 +271,7 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 
 /* Compact Home Card (provided design) */
 .home-card-compact {
-    background: linear-gradient(145deg, rgba(18,18,18,0.95), rgba(12,12,12,0.88));
+    background: var(--secondary-background-color);
     border: 1px solid rgba(255,255,255,0.02);
     border-radius: 12px;
     padding: 12px 14px;
@@ -286,8 +288,8 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 }
 
 .home-card-compact .home-card-header { align-items: flex-start; }
-.home-card-compact .home-card-title { font-size: 14px; font-weight: 700; }
-.home-card-compact .home-card-desc { font-size: 12px; color: #9ea7a2; margin-top: 6px; }
+.home-card-compact .home-card-title { font-size: 14px; font-weight: 700; color: var(--text-color); }
+.home-card-compact .home-card-desc { font-size: 12px; color: var(--text-color); opacity: 0.8; margin-top: 6px; }
 .home-card-action { height: 44px; display:flex; align-items:center; }
 
 /* Style Streamlit button so it visually matches the small pill button in the design */
@@ -311,7 +313,7 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 
 /* Result Card (Mapper) */
 .result-card {
-    background: linear-gradient(180deg, rgba(18,18,18,0.98), rgba(10,10,10,0.95));
+    background: var(--secondary-background-color);
     border: 1px solid rgba(80, 120, 90, 0.08);
     border-radius: 12px;
     padding: 12px 14px 56px 14px;
@@ -322,8 +324,9 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 
 .result-badge {
     display: inline-block;
-    background: rgba(34,139,34,0.10);
-    color: #8ee59b;
+    background: var(--secondary-background-color);
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
     font-weight: 700;
     padding: 6px 12px;
     border-radius: 999px;
@@ -348,13 +351,13 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 
 .result-col-title {
     font-size: 12px;
-    color: #cfeadf;
+    color: var(--text-color);
     font-weight: 700;
 }
 
 .result-list {
     margin: 10px 0 12px 18px;
-    color: #bfc9c4;
+    color: var(--text-color);
 }
 
 /* Position actual Streamlit buttons so they visually sit inside the result card */
@@ -399,7 +402,7 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 
 /* Sidebar */
 .sidebar-title {
-    color: #ffffff;
+    color: var(--text-color);
     font-size: 20px;
     font-weight: 700;
     font-family: 'Poppins', sans-serif;
@@ -407,7 +410,7 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 }
 
 .sidebar-badge {
-    color: #4ade80;
+    color: var(--primary-color);
     font-size: 12px;
     font-weight: 600;
     margin-top: 16px;
@@ -511,11 +514,11 @@ a.home-card { text-decoration: none !important; display: block; color: inherit; 
 
 /* Text Colors */
 p, span, label {
-    color: #b0b0b0;
+    color: var(--text-color);
 }
 
 h1, h2, h3 {
-    color: #ffffff;
+    color: var(--text-color);
 }
 
 /* Dividers */
@@ -702,18 +705,18 @@ elif current_page == "Mapper":
                     <div class="result-grid">
                         <div class="result-col">
                             <div class="result-col-title">IPC Section</div>
-                            <div style="font-size:20px;font-weight:700;color:#ffffff;margin-top:6px;">{ipc_html}</div>
+                            <div style="font-size:20px;font-weight:700;color:var(--text-color);margin-top:6px;">{ipc_html}</div>
                         </div>
                         <div class="result-col">
                             <div class="result-col-title">BNS Section</div>
-                            <div style="font-size:20px;font-weight:700;color:#cfeadf;margin-top:6px;">{bns_html}</div>
+                            <div style="font-size:20px;font-weight:700;color:var(--primary-color);margin-top:6px;">{bns_html}</div>
                         </div>
                     </div>
                     <ul class="result-list">
                         <li>{notes_html}</li>
                         <li>Verify against official text before relying on it</li>
                     </ul>
-                    <div style="position:absolute;left:14px;bottom:14px;font-size:12px;opacity:0.8;color:#bfc9c4;">Source: {source_html}</div>
+                    <div style="position:absolute;left:14px;bottom:14px;font-size:12px;opacity:0.8;color:var(--text-color);">Source: {source_html}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
