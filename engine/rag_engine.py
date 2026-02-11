@@ -131,49 +131,54 @@ def search_pdfs(query: str, top_k: int = 3):
     if not query or not query.strip():
         return None
 
-    # Use external embeddings engine if available and enabled
-    if os.environ.get("LTA_USE_EMBEDDINGS") == "1" and _EMB_ENGINE_AVAILABLE:
-        try:
-            emb_res = _emb_search_index(query, top_k=top_k)
+    if os.environ.get("LTA_USE_EMBEDDINGS") == "1":
+        # Use external embeddings engine if available
+        if _EMB_ENGINE_AVAILABLE:
+            try:
+                emb_res = _emb_search_index(query, top_k=top_k)
+                if emb_res:
+                    # emb_res: list of (score, file, page, snippet)
+                    md = ["> **Answer (embedding search, grounded):**\n"]
+                    for score, file, page, snippet in emb_res:
+                        md.append(f"> - **Source:** {file} | **Page:** {page} | **Score:** {score:.3f}\n>   > _{snippet}_\n")
+                    return "\n".join(md)
+            except Exception:
+                pass
+
+        # then try internal embeddings
+        if _USE_EMB and _EMB_AVAILABLE:
+            emb_res = _emb_search(query, top_k=top_k)
             if emb_res:
-                # emb_res: list of (score, file, page, snippet)
-                md = ["> **Answer (embedding search, grounded):**\n"]
-                for score, file, page, snippet in emb_res:
-                    md.append(f"> - **Source:** {file} | **Page:** {page} | **Score:** {score:.3f}\n>   > _{snippet}_\n")
-                return "\n".join(md)
-        except Exception:
-            pass
+                return emb_res
 
-    # then try internal embeddings
-    if _USE_EMB and _EMB_AVAILABLE:
-        emb_res = _emb_search(query, top_k=top_k)
-        if emb_res:
-            return emb_res
+        # No fallback to keyword search when embeddings are enabled
+        return None
 
-    # Fallback to token-count search
-    if not _INDEX_LOADED:
-        ok = index_pdfs()
-        if not ok:
+    else:
+        # Fallback to token-count search
+        if not _INDEX_LOADED:
+            ok = index_pdfs()
+            if not ok:
+                return None
+        if not _INDEX:
             return None
-    if not _INDEX:
-        return None
-    q = query.lower().strip()
-    tokens = [t for t in q.split() if t]
-    if not tokens:
-        return None
-    scored = []
-    for doc in _INDEX:
-        txt = doc["text"].lower()
-        score = sum(txt.count(t) for t in tokens)
-        if score > 0:
-            first_pos = min((txt.find(t) for t in tokens if txt.find(t) >= 0), default=-1)
-            snippet = doc["text"][first_pos:first_pos+300].replace("\n"," ") if first_pos >= 0 else doc["text"][:200]
-            scored.append((score, doc["file"], doc["page"], snippet))
-    if not scored:
-        return None
-    scored.sort(key=lambda x: x[0], reverse=True)
-    results = scored[:top_k]
-    md_lines = ["> **Answer (grounded snippets):**\n"]
-    for score, file, page, snippet in results:
-        md_lines.append(f"> - **Source:** {file} | **Page:** {page}\n>   > _{snippet.strip()}_\n")
-    return "\n".join(md_lines)
+        q = query.lower().strip()
+        tokens = [t for t in q.split() if t]
+        if not tokens:
+            return None
+        scored = []
+        for doc in _INDEX:
+            txt = doc["text"].lower()
+            score = sum(txt.count(t) for t in tokens)
+            if score > 0:
+                first_pos = min((txt.find(t) for t in tokens if txt.find(t) >= 0), default=-1)
+                snippet = doc["text"][first_pos:first_pos+300].replace("\n"," ") if first_pos >= 0 else doc["text"][:200]
+                scored.append((score, doc["file"], doc["page"], snippet))
+        if not scored:
+            return None
+        scored.sort(key=lambda x: x[0], reverse=True)
+        results = scored[:top_k]
+        md_lines = ["> **Answer (grounded snippets):**\n"]
+        for score, file, page, snippet in results:
+            md_lines.append(f"> - **Source:** {file} | **Page:** {page}\n>   > _{snippet.strip()}_\n")
+        return "\n".join(md_lines)
