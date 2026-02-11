@@ -6,6 +6,6 @@ reportlab
 requests
 
 # Optional (for embedding-based RAG):
-# sentence-transformers
-# numpy
-# faiss-cpu
+sentence-transformers
+numpy
+faiss-cpu

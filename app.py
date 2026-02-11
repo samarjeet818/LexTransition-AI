@@ -854,3 +854,12 @@ elif current_page == "Settings":
     st.markdown("**Version:** 1.0.0")
     st.markdown("**License:** Open Source")
     st.markdown("**Privacy:** 100% Offline - No data sent to servers")
+    st.divider()
+    st.markdown("### Search Mode")
+    emb_mode = st.checkbox("Enable semantic vector search for fact-checking (requires restart)", value=bool(os.environ.get("LTA_USE_EMBEDDINGS")))
+    if emb_mode:
+        os.environ["LTA_USE_EMBEDDINGS"] = "1"
+        st.info("Semantic vector search enabled. Restart the app to apply changes.")
+    else:
+        os.environ["LTA_USE_EMBEDDINGS"] = "0"
+        st.info("Using keyword search mode.")
