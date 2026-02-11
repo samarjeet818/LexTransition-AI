@@ -139,6 +139,282 @@ st.markdown("""
     border-right: 1px solid rgba(255,255,255,0.02);
 }
 
+/* Hide Streamlit sidebar; navigation is handled via header tabs. */
+[data-testid="stSidebar"],
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"] {
+    display: none !important;
+}
+
+/* Top header navigation */
+.top-header {
+    position: sticky;
+    top: 0.35rem;
+    z-index: 40;
+    margin: 0 0 10px 0;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, rgba(16,20,36,0.90), rgba(10,13,28,0.92));
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.35);
+}
+
+.top-header-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    padding: 8px 14px;
+}
+
+.top-header-left {
+    display: none;
+}
+
+.top-header-center {
+    position: static;
+    justify-self: start;
+    width: auto;
+    min-width: 0;
+}
+
+.top-header-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-width: max-content;
+}
+
+.top-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.2px;
+    text-decoration: none !important;
+    white-space: nowrap;
+}
+
+/* Fixed compact site logo at top-left (used instead of the header brand) */
+.site-logo {
+    position: fixed !important;
+    top: 18px !important;
+    left: 18px !important;
+    z-index: 999999 !important;
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(10,14,24,0.98) !important;
+    border: 1px solid rgba(96,165,250,0.15);
+    color: #ffffff !important;
+    font-weight: 800;
+    font-size: 14px;
+    text-decoration: none !important;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+}
+
+.site-logo .logo-icon {
+    font-size: 20px !important;
+    line-height: 1;
+    display: inline !important;
+    visibility: visible !important;
+}
+
+.site-logo .logo-text {
+    white-space: nowrap;
+    color: #60a5fa !important;
+    font-weight: 800;
+    font-size: 14px;
+    display: inline !important;
+    visibility: visible !important;
+}
+
+/* Ensure the logo is visible above everything */
+.top-header .top-brand { display: none !important; }
+
+/* Add left padding to the header to avoid overlap with the fixed logo */
+.top-header { padding-left: 180px; padding-right: 10px; }
+
+/* Responsive adjustments */
+@media (max-width: 1100px) {
+    .site-logo .logo-text { display: none !important; }
+    .site-logo .logo-icon { display: inline !important; visibility: visible !important; }
+    .site-logo { padding: 10px 12px; }
+    .top-header { padding-left: 70px; }
+}
+
+@media (max-width: 920px) {
+    .site-logo { left: 12px; top: 12px; padding: 8px 10px; }
+    .top-header { padding-left: 60px; }
+}
+
+@media (max-width: 640px) {
+    .site-logo { left: 8px; top: 8px; padding: 8px 10px; }
+    .top-header { padding-left: 50px; }
+}
+
+/* Nav: float the nav inside a subtle rounded container and make pills clearer */
+.top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(8,12,22,0.84), rgba(10,14,26,0.92));
+    border: 1px solid rgba(255,255,255,0.03);
+    flex-wrap: nowrap;
+    width: auto;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.top-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.top-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    padding: 6px 10px;
+    border-radius: 10px;
+    color: #cbd5e1 !important;
+    text-decoration: none !important;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.03);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.12s ease;
+    position: relative;
+}
+
+.top-nav-link:hover {
+    color: #ffffff !important;
+    background: rgba(255,255,255,0.045);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+}
+
+.top-nav-link.active {
+    color: #ffffff !important;
+    background: linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.top-nav-link + .top-nav-link::before {
+    content: "";
+    position: absolute;
+    left: -5px; /* overlap into the gap */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 18px;
+    background: rgba(255,255,255,0.10);
+    opacity: 1;
+    pointer-events: none;
+}
+
+.top-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    text-decoration: none !important;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #ffffff !important;
+    background: linear-gradient(180deg, rgba(22,32,66,0.98), rgba(11,18,44,0.98));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+.top-cta:hover {
+    background: linear-gradient(180deg, rgba(29,42,84,0.98), rgba(14,23,54,0.98));
+}
+
+.top-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(255,255,255,0.03);
+    color: #d1fae5;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1px;
+}
+
+.top-credit {
+    color: #93c5fd !important;
+    font-size: 12px;
+    text-decoration: none !important;
+}
+
+.top-credit:hover { text-decoration: underline !important; }
+
+.app-footer {
+    margin-top: 26px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: linear-gradient(180deg, rgba(13,18,35,0.90), rgba(8,11,24,0.92));
+}
+
+.app-footer-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+}
+
+@media (max-width: 920px) {
+    .top-header-inner {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        min-height: 0;
+        padding: 10px;
+    }
+    .top-header-left {
+        min-width: 0;
+    }
+    .top-header-center {
+        width: 100%;
+        max-width: 100%;
+    }
+    .top-header-right {
+        min-width: 0;
+        justify-content: flex-start;
+    }
+    .top-brand {
+        font-size: 17px;
+    }
+    .top-nav {
+        width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        padding-bottom: 2px;
+    }
+    .top-nav-link { white-space: nowrap; }
+    .top-nav-link.active::after { bottom: -6px; }
+    .top-cta { padding: 8px 14px; font-size: 12px; }
+    .app-footer-inner { justify-content: flex-start; }
+}
+
 /* Global font */
 * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -529,26 +805,47 @@ hr {
 """, unsafe_allow_html=True)
 
 
-# Sidebar Navigation (Dark Theme)
-with st.sidebar:
-    st.markdown('<p class="sidebar-title">⚖️ LexTransition AI</p>', unsafe_allow_html=True)
-    st.info("Offline legal assistant: Mapping IPC to BNS")
-    st.divider()
-    
-    if st.button("🏠 Home", use_container_width=True):
-        _goto("Home")
-    if st.button("🔄 IPC → BNS Mapper", use_container_width=True):
-        _goto("Mapper")
-    if st.button("🖼️ Document OCR", use_container_width=True):
-        _goto("OCR")
-    if st.button("📚 Fact Checker", use_container_width=True):
-        _goto("Fact")
-    if st.button("⚙️ Settings / About", use_container_width=True):
-        _goto("Settings")
-    
-    st.divider()
-    st.markdown('<p class="sidebar-badge">✓ Offline Mode</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sidebar-badge">✓ Privacy First</p>', unsafe_allow_html=True)
+# Header Navigation
+nav_items = [
+    ("Home", "Home"),
+    ("Mapper", "IPC -> BNS Mapper"),
+    ("OCR", "Document OCR"),
+    ("Fact", "Fact Checker"),
+    ("Settings", "Settings / About"),
+]
+
+header_links = []
+for page, label in nav_items:
+    page_html = html_lib.escape(page)
+    label_html = html_lib.escape(label)
+    active_class = "active" if st.session_state.current_page == page else ""
+    header_links.append(
+        f'<a class="top-nav-link {active_class}" href="?page={page_html}" target="_self" '
+        f'title="{label_html}" aria-label="{label_html}">{label_html}</a>'
+    )
+
+st.markdown(
+    f"""
+<!-- Compact fixed site logo -->
+<a class="site-logo" href="?page=Home" target="_self"><span class="logo-icon">⚖️</span><span class="logo-text">LexTransition AI</span></a>
+
+<div class="top-header">
+  <div class="top-header-inner">
+    <div class="top-header-left">
+      <!-- header brand is hidden by CSS; left here for semantics/accessibility -->
+      <a class="top-brand" href="?page=Home" target="_self">LexTransition AI</a>
+    </div>
+    <div class="top-header-center">
+      <div class="top-nav">{''.join(header_links)}</div>
+    </div>
+    <div class="top-header-right">
+      <a class="top-cta" href="?page=Fact" target="_self">Get Started</a>
+    </div>
+  </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
 # Attempt to import engines (use stubs if missing)
 try:
@@ -857,3 +1154,17 @@ elif current_page == "Settings":
     st.markdown("**Version:** 1.0.0")
     st.markdown("**License:** Open Source")
     st.markdown("**Privacy:** 100% Offline - No data sent to servers")
+
+# Footer Bar
+st.markdown(
+    """
+<div class="app-footer">
+  <div class="app-footer-inner">
+    <span class="top-chip">Offline Mode</span>
+    <span class="top-chip">Privacy First</span>
+    <a class="top-credit" href="https://www.flaticon.com/" target="_blank">Icons: Flaticon</a>
+  </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
