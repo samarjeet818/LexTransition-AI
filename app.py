@@ -131,6 +131,7 @@ try:
     from engine.rag_engine import search_pdfs, add_pdf, index_pdfs
     from engine.llm import summarize as llm_summarize
     from engine.db import import_mappings_from_csv, import_mappings_from_excel, export_mappings_to_json, export_mappings_to_csv
+    from engine.config import get_runtime_diagnostics, validate_runtime_config
     ENGINES_AVAILABLE = True
 except Exception:
     ENGINES_AVAILABLE = False
@@ -149,6 +150,15 @@ if ENGINES_AVAILABLE and not st.session_state.get("pdf_indexed"):
         st.session_state.pdf_indexed = True
     except Exception:
         pass
+
+if ENGINES_AVAILABLE and not st.session_state.get("runtime_checked"):
+    try:
+        warnings = validate_runtime_config()
+        for warn in warnings:
+            st.warning(f"Runtime config warning: {warn}")
+    except Exception:
+        pass
+    st.session_state.runtime_checked = True
 
 # Get current page
 current_page = st.session_state.current_page
@@ -508,6 +518,17 @@ elif current_page == "Settings":
     st.markdown("**Version:** 1.0.0")
     st.markdown("**License:** Open Source")
     st.markdown("**Privacy:** 100% Offline - No data sent to servers")
+    if ENGINES_AVAILABLE:
+        st.divider()
+        st.markdown("### Runtime Diagnostics")
+        try:
+            diagnostics = get_runtime_diagnostics()
+            for feature, info in diagnostics.items():
+                status = info.get("status", "unknown").upper()
+                reason = info.get("reason", "")
+                st.markdown(f"- **{feature}**: `{status}` - {reason}")
+        except Exception as e:
+            st.warning(f"Unable to load diagnostics: {e}")
 
 # Footer Bar
 st.markdown(
