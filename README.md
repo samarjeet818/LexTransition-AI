@@ -93,6 +93,15 @@ Run batch tasks without opening Streamlit:
 - Search citations: `python cli.py search --query "penalty for cheating" --top-k 3`
 - Runtime diagnostics: `python cli.py diagnostics`
 
+## OCR Benchmark Harness
+
+Use `scripts/ocr_benchmark.py` with a CSV dataset (`image_path,ground_truth`) to compute:
+- Character Error Rate (CER)
+- Keyword Recall
+
+Example:
+- `python scripts/ocr_benchmark.py --dataset data/ocr_dataset.csv --report ocr_report.md`
+
 ## Optional features (embeddings & local LLM)
 
 ### Embedding-based RAG (FAISS + sentence-transformers)
