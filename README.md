@@ -84,6 +84,26 @@ To use Grounded Fact-Check, upload law PDFs in the Fact-Check page (or drop them
   - `pip install -r requirements.txt`
   - `pytest -q`
 
+## CLI Workflows
+
+Run batch tasks without opening Streamlit:
+
+- Map section: `python cli.py map 420`
+- Import mappings: `python cli.py import --file mappings.csv`
+- Search citations: `python cli.py search --query "penalty for cheating" --top-k 3`
+- Runtime diagnostics: `python cli.py diagnostics`
+- Backup DB: `python cli.py backup-db`
+- Restore DB: `python cli.py restore-db --path backups/mapping_db_xxx.sqlite`
+
+## OCR Benchmark Harness
+
+Use `scripts/ocr_benchmark.py` with a CSV dataset (`image_path,ground_truth`) to compute:
+- Character Error Rate (CER)
+- Keyword Recall
+
+Example:
+- `python scripts/ocr_benchmark.py --dataset data/ocr_dataset.csv --report ocr_report.md`
+
 ## Optional features (embeddings & local LLM)
 
 ### Embedding-based RAG (FAISS + sentence-transformers)
