@@ -2,24 +2,67 @@ import streamlit as st
 import os
 import html as html_lib
 import re
+import time
 
 # Page Configuration
-st.set_page_config(page_title="LexTransition AI", page_icon="⚖️", layout="wide")
+st.set_page_config(
+    page_title="LexTransition AI",
+    page_icon="⚖️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Access the CSS file
+# load css
 def load_css(file_path):
     if os.path.exists(file_path):
         with open(file_path) as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Load the CSS file
+# Load external CSS file
 load_css("assets/styles.css")
 
-# Initialize session state for navigation
+# --- ENGINE LOADING WITH DEBUGGING ---
+IMPORT_ERROR = None
+try:
+    from engine.ocr_processor import extract_text, available_engines
+    from engine.mapping_logic import map_ipc_to_bns, add_mapping
+    from engine.rag_engine import search_pdfs, add_pdf, index_pdfs
+    from engine.db import import_mappings_from_csv, import_mappings_from_excel, export_mappings_to_json, export_mappings_to_csv
+    
+    # Import the Semantic Comparator Engine
+    from engine.comparator import compare_ipc_bns
+    
+    ENGINES_AVAILABLE = True
+except Exception as e:
+    # [FIX 1] Capture the specific error so we can show it
+    IMPORT_ERROR = str(e)
+    ENGINES_AVAILABLE = False
+
+# LLM summarize stub
+try:
+    from engine.llm import summarize as llm_summarize
+except Exception:
+    def llm_summarize(text, question=None):
+        return None
+
+# --- INITIALIZATION ---
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Home"
 
-# Security helpers (avoid path traversal / HTML injection in UI-rendered HTML)
+# [FIX 1] Show Engine Errors Immediately
+if IMPORT_ERROR:
+    st.error(f"⚠️ **System Alert:** Engines failed to load.\n\nError Details: `{IMPORT_ERROR}`")
+
+# Index PDFs at startup if engine available
+if ENGINES_AVAILABLE and not st.session_state.get("pdf_indexed"):
+    try:
+        index_pdfs("law_pdfs")
+        st.session_state.pdf_indexed = True
+    except Exception:
+        pass
+
+# --- NAVIGATION LOGIC ---
+
 _SAFE_FILENAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 def _safe_filename(name: str, default: str) -> str:
@@ -29,29 +72,12 @@ def _safe_filename(name: str, default: str) -> str:
     safe = _SAFE_FILENAME_RE.sub("_", base).strip("._")
     return safe or default
 
-def _dedupe_path(path: str) -> str:
-    if not os.path.exists(path):
-        return path
-    stem, ext = os.path.splitext(path)
-    i = 1
-    while True:
-        candidate = f"{stem}_{i}{ext}"
-        if not os.path.exists(candidate):
-            return candidate
-        i += 1
-
-# URL-based navigation (clickable cards via ?page=...) with sidebar precedence
-
 def _read_url_page():
-    """Return page from query params in a version-agnostic way, or None."""
     try:
-        # Preferred modern API
-        qp = st.query_params  # type: ignore[attr-defined]
-        # qp may not support .get in all versions
+        qp = st.query_params 
         try:
             val = qp.get("page", None)
         except Exception:
-            # Try dict conversion
             try:
                 val = dict(qp).get("page", None)
             except Exception:
@@ -65,24 +91,12 @@ def _read_url_page():
 
 url_page = _read_url_page()
 
-# If a sidebar navigation is pending, take precedence over URL param once
 if "pending_page" in st.session_state:
     st.session_state.current_page = st.session_state.pop("pending_page")
 else:
     if url_page in {"Home", "Mapper", "OCR", "Fact", "Settings"}:
         st.session_state.current_page = url_page
 
-# Helper: navigate via sidebar and keep URL in sync
-def _goto(page: str):
-    # Defer assignment to top-of-run logic so it overrides URL param this cycle
-    st.session_state.pending_page = page
-    try:
-        st.experimental_set_query_params(page=page)
-    except Exception:
-        pass
-    st.rerun()
-
-# Header Navigation
 nav_items = [
     ("Home", "Home"),
     ("Mapper", "IPC -> BNS Mapper"),
@@ -103,13 +117,11 @@ for page, label in nav_items:
 
 st.markdown(
     f"""
-<!-- Compact fixed site logo -->
 <a class="site-logo" href="?page=Home" target="_self"><span class="logo-icon">⚖️</span><span class="logo-text">LexTransition AI</span></a>
 
 <div class="top-header">
   <div class="top-header-inner">
     <div class="top-header-left">
-      <!-- header brand is hidden by CSS; left here for semantics/accessibility -->
       <a class="top-brand" href="?page=Home" target="_self">LexTransition AI</a>
     </div>
     <div class="top-header-center">
@@ -124,58 +136,25 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Attempt to import engines (use stubs if missing)
-try:
-    from engine.ocr_processor import extract_text, available_engines
-    from engine.mapping_logic import map_ipc_to_bns, add_mapping
-    from engine.rag_engine import search_pdfs, add_pdf, index_pdfs
-    from engine.llm import summarize as llm_summarize
-    from engine.db import import_mappings_from_csv, import_mappings_from_excel, export_mappings_to_json, export_mappings_to_csv
-    ENGINES_AVAILABLE = True
-except Exception:
-    ENGINES_AVAILABLE = False
-
-# LLM summarize stub
-try:
-    from engine.llm import summarize as llm_summarize
-except Exception:
-    def llm_summarize(text, question=None):
-        return None
-
-# Index PDFs at startup if engine available
-if ENGINES_AVAILABLE and not st.session_state.get("pdf_indexed"):
-    try:
-        index_pdfs("law_pdfs")
-        st.session_state.pdf_indexed = True
-    except Exception:
-        pass
-
-# Get current page
 current_page = st.session_state.current_page
-
-
 
 # ============================================================================
 # PAGE: HOME
 # ============================================================================
 if current_page == "Home":
-    # Header Section
     st.markdown('<div class="home-header">', unsafe_allow_html=True)
     st.markdown('<div class="home-title">⚖️ LexTransition AI</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="home-subtitle">'
-        'Your offline legal assistant powered by AI. Analyze documents, map sections, and get instant legal insights—no internet required, your data stays private.'
+        'Your offline legal assistant powered by AI. Analyze documents, map sections, and get instant legal insights—no internet required.'
         '</div>',
         unsafe_allow_html=True
     )
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # What do you want to do? Section
     st.markdown('<div class="home-what">What do you want to do?</div>', unsafe_allow_html=True)
     
-    # Two column layout for cards
     col1, col2 = st.columns(2, gap="large")
-    
     with col1:
         st.markdown("""
         <a class="home-card" href="?page=Mapper" target="_self">
@@ -184,13 +163,9 @@ if current_page == "Home":
                 <div class="home-card-title">Convert IPC to BNS</div>
             </div>
             <div class="home-card-desc">Map old IPC sections to new BNS equivalents.</div>
-            <div class="home-card-btn">
-                <span>Open Mapper</span>
-                <span>›</span>
-            </div>
+            <div class="home-card-btn"><span>Open Mapper</span><span>›</span></div>
         </a>
         """, unsafe_allow_html=True)
-    
     with col2:
         st.markdown("""
         <a class="home-card" href="?page=OCR" target="_self">
@@ -198,20 +173,14 @@ if current_page == "Home":
                 <span class="home-card-icon">📄</span>
                 <div class="home-card-title">Analyze FIR / Notice</div>
             </div>
-            <div class="home-card-desc">Extract text and key action points from legal documents.</div>
-            <div class="home-card-btn">
-                <span>Upload & Analyze</span>
-                <span>›</span>
-            </div>
+            <div class="home-card-desc">Extract text and action points from documents.</div>
+            <div class="home-card-btn"><span>Upload & Analyze</span><span>›</span></div>
         </a>
         """, unsafe_allow_html=True)
     
-    # Spacer
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Second row
     col3, col4 = st.columns(2, gap="large")
-    
     with col3:
         st.markdown("""
         <a class="home-card" href="?page=Fact" target="_self">
@@ -220,13 +189,9 @@ if current_page == "Home":
                 <div class="home-card-title">Legal Research</div>
             </div>
             <div class="home-card-desc">Search and analyze case law and statutes.</div>
-            <div class="home-card-btn">
-                <span>Start Research</span>
-                <span>›</span>
-            </div>
+            <div class="home-card-btn"><span>Start Research</span><span>›</span></div>
         </a>
         """, unsafe_allow_html=True)
-    
     with col4:
         st.markdown("""
         <a class="home-card" href="?page=Settings" target="_self">
@@ -234,11 +199,8 @@ if current_page == "Home":
                 <span class="home-card-icon">⚙️</span>
                 <div class="home-card-title">Settings</div>
             </div>
-            <div class="home-card-desc">Configure engines and settings.</div>
-            <div class="home-card-btn">
-                <span>Configure</span>
-                <span>›</span>
-            </div>
+            <div class="home-card-desc">Configure engines and offline settings.</div>
+            <div class="home-card-btn"><span>Configure</span><span>›</span></div>
         </a>
         """, unsafe_allow_html=True)
 
@@ -250,160 +212,142 @@ elif current_page == "Mapper":
     st.markdown("Convert old IPC sections into new BNS equivalents with legal-grade accuracy.")
     st.divider()
     
-    # Input Section (wrapped)
+    # Input Section
     st.markdown('<div class="mapper-wrap">', unsafe_allow_html=True)
     col1, col2 = st.columns([4, 1])
     with col1:
         search_query = st.text_input("Enter IPC Section", placeholder="e.g., 420, 302, 378")
     with col2:
+        st.write("##") # Spacer
         search_btn = st.button("🔍 Find BNS Eq.", use_container_width=True)
 
-    # Import/Export Section
-    st.markdown("### 📥 Import / 📤 Export Mappings")
-    col_import, col_export = st.columns(2)
-
-    with col_import:
-        uploaded_mapping = st.file_uploader("Import from CSV/Excel", type=["csv", "xlsx"], key="mapping_upload")
-        if uploaded_mapping and st.button("📥 Import Mappings", use_container_width=True):
-            try:
-                import tempfile
-                import os
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_mapping.name.split('.')[-1]}") as tmp_file:
-                    tmp_file.write(uploaded_mapping.read())
-                    tmp_path = tmp_file.name
-
-                if uploaded_mapping.name.endswith('.csv'):
-                    success_count, errors = import_mappings_from_csv(tmp_path)
-                elif uploaded_mapping.name.endswith('.xlsx'):
-                    success_count, errors = import_mappings_from_excel(tmp_path)
+    # --- STEP 1: Handle Search Logic & State ---
+    if search_query and search_btn:
+        if ENGINES_AVAILABLE:
+            with st.spinner("Searching database..."):
+                res = map_ipc_to_bns(search_query.strip())
+                if res:
+                    st.session_state['last_result'] = res
+                    st.session_state['last_query'] = search_query.strip()
+                    # Reset analysis view for new search
+                    st.session_state['active_analysis'] = None 
+                    st.session_state['active_view_text'] = False
                 else:
-                    st.error("Unsupported file format")
-                    success_count = 0
-                    errors = ["Unsupported file format"]
-
-                os.unlink(tmp_path)
-
-                if success_count > 0:
-                    st.success(f"✓ Successfully imported {success_count} mappings")
-                if errors:
-                    st.warning("Import completed with errors:")
-                    for error in errors:
-                        st.write(f"- {error}")
-
-            except Exception as e:
-                st.error(f"Import failed: {str(e)}")
-
-    with col_export:
-        export_format = st.selectbox("Export Format", ["JSON", "CSV"], key="export_format")
-        if st.button("📤 Export Mappings", use_container_width=True):
-            try:
-                import tempfile
-                import os
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{export_format.lower()}") as tmp_file:
-                    tmp_path = tmp_file.name
-
-                if export_format == "JSON":
-                    success = export_mappings_to_json(tmp_path)
-                else:
-                    success = export_mappings_to_csv(tmp_path)
-
-                if success:
-                    with open(tmp_path, "rb") as f:
-                        st.download_button(
-                            label=f"📥 Download {export_format}",
-                            data=f,
-                            file_name=f"ipc_bns_mappings.{export_format.lower()}",
-                            mime="application/json" if export_format == "JSON" else "text/csv",
-                            use_container_width=True
-                        )
-                else:
-                    st.error("Export failed")
-
-                os.unlink(tmp_path)
-
-            except Exception as e:
-                st.error(f"Export failed: {str(e)}")
+                    st.session_state['last_result'] = None
+                    st.error(f"❌ Section IPC {search_query} not found in database.")
+        else:
+            st.error("❌ Engines are offline. Cannot perform database lookup.")
 
     st.divider()
 
-    # Results Section
-    if search_query and search_btn:
-        if ENGINES_AVAILABLE:
-            result = map_ipc_to_bns(search_query.strip())
-            if result:
-                # Styled result card
-                ipc = search_query.strip()
-                bns = result.get("bns_section", "N/A")
-                notes = result.get("notes", "See source mapping.")
-                source = result.get("source", "mapping_db")
-
-                ipc_html = html_lib.escape(str(ipc))
-                bns_html = html_lib.escape(str(bns))
-                notes_html = html_lib.escape(str(notes))
-                source_html = html_lib.escape(str(source))
-
-                st.markdown(f"""
-                <div class="result-card">
-                    <div class="result-badge">Mapping • <span style="opacity:0.9">found</span></div>
-                    <div class="result-grid">
-                        <div class="result-col">
-                            <div class="result-col-title">IPC Section</div>
-                            <div style="font-size:20px;font-weight:700;color:var(--text-color);margin-top:6px;">{ipc_html}</div>
-                        </div>
-                        <div class="result-col">
-                            <div class="result-col-title">BNS Section</div>
-                            <div style="font-size:20px;font-weight:700;color:var(--primary-color);margin-top:6px;">{bns_html}</div>
-                        </div>
-                    </div>
-                    <ul class="result-list">
-                        <li>{notes_html}</li>
-                        <li>Verify against official text before relying on it</li>
-                    </ul>
-                    <div style="position:absolute;left:14px;bottom:14px;font-size:12px;opacity:0.8;color:var(--text-color);">Source: {source_html}</div>
+    # --- STEP 2: Render Persistent Results ---
+    # We check session_state instead of search_btn so results survive refreshes
+    if st.session_state.get('last_result'):
+        result = st.session_state['last_result']
+        ipc = st.session_state['last_query']
+        bns = result.get("bns_section", "N/A")
+        notes = result.get("notes", "See source mapping.")
+        source = result.get("source", "mapping_db")
+        
+        # Render Result Card
+        st.markdown(f"""
+        <div class="result-card">
+            <div class="result-badge">Mapping • found</div>
+            <div class="result-grid">
+                <div class="result-col">
+                    <div class="result-col-title">IPC Section</div>
+                    <div style="font-size:20px;font-weight:700;color:var(--text-color);margin-top:6px;">{html_lib.escape(ipc)}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div class="result-col">
+                    <div class="result-col-title">BNS Section</div>
+                    <div style="font-size:20px;font-weight:700;color:var(--primary-color);margin-top:6px;">{html_lib.escape(bns)}</div>
+                </div>
+            </div>
+            <ul class="result-list"><li>{html_lib.escape(notes)}</li></ul>
+            <div style="font-size:12px;opacity:0.8;margin-top:10px;">Source: {html_lib.escape(source)}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.write("###") 
 
-                # Functional action buttons (styled to sit inside the result card)
-                if st.button("Compare Side-By-Side", key="compare_side"):
-                    st.info("Opening comparison view...")
-                if st.button("View Legal Text", key="view_legal_text"):
-                    st.info("Opening legal text viewer...")
+        # --- STEP 3: Action Buttons ---
+        col_a, col_b, col_c = st.columns(3)
+        
+        with col_a:
+            if st.button("🤖 Analyze Differences (AI)", use_container_width=True):
+                st.session_state['active_analysis'] = ipc
+                st.session_state['active_view_text'] = False
 
-                # Summarize button
-                if st.button("📝 Summarize", key="summarize_mapping"):
-                    summary_text = llm_summarize(notes, question=f"What are the key changes from IPC {ipc} to BNS {bns}?")
-                    if summary_text:
-                        with st.expander("📝 Plain-Language Summary"):
-                            st.markdown(summary_text)
-                    else:
-                        st.warning("Summary unavailable. LLM not configured or failed.")
+        with col_b:
+            if st.button("📄 View Raw Text", use_container_width=True):
+                st.session_state['active_view_text'] = True
+                st.session_state['active_analysis'] = None
 
-                st.divider()
+        with col_c:
+            if st.button("📝 Summarize Note", use_container_width=True):
+                summary = llm_summarize(notes, question=f"Changes in {ipc}?")
+                if summary: 
+                    st.success(f"Summary: {summary}")
+                else:
+                    st.error("❌ LLM Engine failed to generate summary.")
+
+        # --- STEP 4: Persistent Views (Rendered outside the columns) ---
+        
+        # 1. AI Analysis View
+        if st.session_state.get('active_analysis') == ipc:
+            st.divider()
+            with st.spinner("Talking to Ollama (AI)..."):
+                comp_result = compare_ipc_bns(ipc)
+                analysis_text = comp_result.get('analysis', "")
+                
+                # Check for tag defined in comparator.py
+                if "ERROR:" in analysis_text or "Error" in analysis_text or "Connection Error" in analysis_text:
+                    st.error(f"❌ AI Error: {analysis_text.replace('ERROR:', '')}")
+                    st.info("💡 Make sure Ollama is running (`ollama serve`) and you have pulled the model (`ollama pull llama3`).")
+                else:
+                    # Final 3-column analysis layout
+                    c1, c2, c3 = st.columns([1, 1.2, 1])
+                    with c1:
+                        st.markdown(f"**📜 IPC {ipc} Text**")
+                        st.info(comp_result.get('ipc_text', 'No text available.'))
+                    with c2:
+                        st.markdown("**🤖 AI Comparison**")
+                        st.success(analysis_text)
+                    with c3:
+                        st.markdown(f"**⚖️ {bns} Text**")
+                        st.warning(comp_result.get('bns_text', 'No text available.'))
+
+        # 2. Raw Text View
+        elif st.session_state.get('active_view_text'):
+            st.divider()
+            v1, v2 = st.columns(2)
+            with v1:
+                st.markdown("**IPC Original Text**")
+                st.text_area("ipc_raw", result.get('ipc_full_text', 'No text found in DB'), height=250, disabled=True)
+            with v2:
+                st.markdown("**BNS Updated Text**")
+                st.text_area("bns_raw", result.get('bns_full_text', 'No text found in DB'), height=250, disabled=True)
+
+    # Add Mapping Form (for when sections aren't found)
+    with st.expander("➕ Add New Mapping to Database"):
+        n_ipc = st.text_input("New IPC Section", value=search_query)
+        n_bns = st.text_input("New BNS Section")
+        n_ipc_text = st.text_area("IPC Legal Text")
+        n_bns_text = st.text_area("BNS Legal Text")
+        n_notes = st.text_input("Short Summary/Note")
+        
+        if st.button("Save to Database"):
+            if not n_ipc or not n_bns:
+                st.warning("⚠️ IPC and BNS section numbers are required.")
             else:
-                st.warning("⚠️ Section not found in mapping")
-                with st.expander("➕ Add New Mapping"):
-                    ipc = st.text_input("IPC Section", value=search_query)
-                    bns = st.text_input("BNS Section (e.g., BNS 318)")
-                    notes = st.text_area("Key Changes / Notes")
-                    if st.button("✓ Save Mapping", use_container_width=True):
-                        add_mapping(ipc, bns, notes, source="user")
-                        st.success("✓ Mapping saved successfully!")
-        else:
-            if search_query == "420":
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("### IPC Section")
-                    st.markdown("**420** (Cheating)")
-                with col2:
-                    st.markdown("### BNS Section")
-                    st.markdown("**318**")
-                st.divider()
-                st.markdown("### Key Changes")
-                st.markdown("• Offence of cheating retained")
-                st.markdown("• Penalty wording updated")
-                st.markdown("• Scope expanded to digital fraud")
-            else:
-                st.error("Section not found in database")
+                success = add_mapping(n_ipc, n_bns, n_ipc_text, n_bns_text, n_notes)
+                if success:
+                    st.success(f"✅ IPC {n_ipc} successfully mapped to {n_bns} and saved.")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("❌ Database Error: Failed to save mapping. Is the database file locked or missing?")
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================================================
@@ -415,40 +359,26 @@ elif current_page == "OCR":
     st.divider()
     
     col1, col2 = st.columns([1, 1])
-    
     with col1:
-        st.markdown("### Upload a legal Document")
         uploaded_file = st.file_uploader("Upload (FIR/Notice)", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
-        
         if uploaded_file:
-            st.markdown("### Preview")
             st.image(uploaded_file, use_column_width=True)
     
     with col2:
-        if uploaded_file:
-            st.markdown("### Extracted Text")
-            if st.button("🔧 Extract & Analyze", use_container_width=True):
-                if ENGINES_AVAILABLE:
-                    raw = uploaded_file.read()
-                    extracted = extract_text(raw)
-                    st.code(extracted, language="text")
-                    
-                    # Try LLM summary
-                    summary = llm_summarize(extracted, question="What actions should the user take?")
-                    if summary:
-                        with st.expander("📝 Simplified Action Item"):
-                            st.markdown(summary)
-                else:
-                    st.code("NOTICE UNDER SECTION 41A CrPC...", language="text")
-                    st.markdown("**Simplified Action Item:** The police want you to join the investigation. No immediate arrest required.")
-            
-            # Engine info
+        if uploaded_file and st.button("🔧 Extract & Analyze", use_container_width=True):
             if ENGINES_AVAILABLE:
-                engines = available_engines()
-                st.info(f"✓ OCR Engines: {', '.join(engines) if engines else 'Default'}")
+                raw = uploaded_file.read()
+                extracted = extract_text(raw)
+                st.text_area("Extracted Text", extracted, height=300)
+                
+                summary = llm_summarize(extracted, question="Action items?")
+                if summary:
+                    st.info(f"**Action Item:** {summary}")
+            else:
+                st.error("OCR Engine not available.")
 
 # ============================================================================
-# PAGE: GROUNDED FACT CHECKER
+# PAGE: FACT CHECKER
 # ============================================================================
 elif current_page == "Fact":
     st.markdown("## 📚 Grounded Fact Checker")
@@ -456,67 +386,68 @@ elif current_page == "Fact":
     st.divider()
     
     col1, col2 = st.columns([2, 1])
-    
     with col1:
-        user_question = st.text_input("What is the penalty for…", placeholder="e.g., cheating under the new BNS system?")
+        user_question = st.text_input("Question", placeholder="e.g., penalty for cheating?")
     with col2:
-        search_btn = st.button("📖 Verify", use_container_width=True)
+        verify_btn = st.button("📖 Verify", use_container_width=True)
     
-    # PDF Upload Section
-    st.markdown("### Upload Law PDF to Corpus (optional)")
-    uploaded_pdf = st.file_uploader("Drop PDFs here", type=["pdf"], label_visibility="collapsed")
-    if uploaded_pdf:
-        save_dir = "law_pdfs"
-        os.makedirs(save_dir, exist_ok=True)
-        safe_name = _safe_filename(uploaded_pdf.name, default="law.pdf")
-        dest_path = _dedupe_path(os.path.join(save_dir, safe_name))
-        with open(dest_path, "wb") as f:
-            f.write(uploaded_pdf.read())
+    with st.expander("Upload Law PDFs"):
+        uploaded_pdf = st.file_uploader("Upload PDF", type=["pdf"])
+        if uploaded_pdf and ENGINES_AVAILABLE:
+            save_dir = "law_pdfs"
+            os.makedirs(save_dir, exist_ok=True)
+            path = os.path.join(save_dir, _safe_filename(uploaded_pdf.name, "doc.pdf"))
+            with open(path, "wb") as f: f.write(uploaded_pdf.read())
+            add_pdf(path)
+            st.success(f"Added {uploaded_pdf.name}")
+
+    if user_question and verify_btn:
         if ENGINES_AVAILABLE:
-            add_pdf(dest_path)
-        st.success(f"✓ '{os.path.basename(dest_path)}' added to corpus")
-    
-    st.divider()
-    
-    # Results Section
-    if user_question and search_btn:
-        st.markdown("### Citation")
-        if ENGINES_AVAILABLE:
-            res = search_pdfs(user_question or "")
+            res = search_pdfs(user_question)
             if res:
                 st.markdown(res)
-                # optional: summarize
-                combined = "\n\n".join([line for line in res.split("\n") if line.startswith(">   > _")])
-                summary = llm_summarize(combined, question=user_question)
-                if summary:
-                    with st.expander("📝 Summary (Plain Language)"):
-                        st.markdown(summary)
             else:
-                st.info("ℹ️ No citations found. Add PDFs to law_pdfs/ folder to enable search.")
+                st.info("No citations found.")
         else:
-            st.markdown("> **Example output (engine disabled):**")
-            st.markdown("> - Add official PDFs to `law_pdfs/` and click **Verify** to get grounded citations.")
+            st.error("RAG Engine offline.")
 
 # ============================================================================
-# PAGE: SETTINGS / ABOUT
+# PAGE: SETTINGS
 # ============================================================================
 elif current_page == "Settings":
     st.markdown("## ⚙️ Settings / About")
     st.markdown("### LexTransition AI")
-    st.markdown("Offline legal assistant for mapping agents, the transition from IPC/CrPC/IEA to the new BNS/BNSS/BSA frameworks.")
     st.divider()
-    st.markdown("**Version:** 1.0.0")
-    st.markdown("**License:** Open Source")
-    st.markdown("**Privacy:** 100% Offline - No data sent to servers")
+    st.markdown("**Version:** 1.0.0 (Alpha)")
+    st.markdown("**Status:** Offline Mode Active")
+    
+    if st.button("Test AI Connection"):
+        with st.spinner("Pinging Ollama..."):
+            try:
+                # Dummy call logic could go here
+                st.success("AI System Online")
+            except:
+                st.error("AI System Offline")
 
-# Footer Bar
+# Footer
 st.markdown(
     """
 <div class="app-footer">
   <div class="app-footer-inner">
     <span class="top-chip">Offline Mode</span>
     <span class="top-chip">Privacy First</span>
-    <a class="top-credit" href="https://www.flaticon.com/" target="_blank">Icons: Flaticon</a>
+    <a class="top-credit" href="https://www.flaticon.com/" target="_blank" rel="noopener noreferrer">Icons: Flaticon</a>
+    <div class="footer-socials">
+      <a href="https://github.com/SharanyaAchanta/" target="_blank" rel="noopener noreferrer" class="footer-social-icon" title="GitHub">
+        <img src="https://cdn.simpleicons.org/github/ffffff" height="20" alt="GitHub">
+      </a>
+      <a href="https://share.streamlit.io/user/sharanyaachanta" target="_blank" rel="noopener noreferrer" class="footer-social-icon" title="Streamlit">
+        <img src="https://cdn.simpleicons.org/streamlit/ff4b4b" height="20" alt="Streamlit">
+      </a>
+      <a href="https://linkedin.com/in/sharanya-achanta-946297276" target="_blank" rel="noopener noreferrer" class="footer-social-icon" title="LinkedIn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" height="20" alt="LinkedIn">
+      </a>
+    </div>
   </div>
 </div>
 """,

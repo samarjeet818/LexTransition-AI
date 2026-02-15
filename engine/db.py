@@ -25,11 +25,13 @@ def initialize_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Create mappings table
+    # Create mappings table with full text
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS mappings (
             ipc_section TEXT PRIMARY KEY,
             bns_section TEXT NOT NULL,
+            ipc_full_text TEXT,
+            bns_full_text TEXT,
             notes TEXT,
             source TEXT,
             category TEXT
@@ -76,11 +78,13 @@ def migrate_from_json():
         # Insert mappings
         for ipc_section, mapping in data.items():
             cursor.execute('''
-                INSERT INTO mappings (ipc_section, bns_section, notes, source, category)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO mappings (ipc_section, bns_section, ipc_full_text, bns_full_text, notes, source, category)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ipc_section,
                 mapping.get('bns_section', ''),
+                mapping.get('ipc_full_text', ''),
+                mapping.get('bns_full_text', ''),
                 mapping.get('notes', ''),
                 mapping.get('source', ''),
                 mapping.get('category', '')
@@ -88,33 +92,30 @@ def migrate_from_json():
 
         conn.commit()
         conn.close()
-
         print(f"Successfully migrated {len(data)} mappings from JSON to database.")
 
     except Exception as e:
         print(f"Error during migration: {e}")
 
-def insert_mapping(ipc_section: str, bns_section: str, notes: str = "",
-                  source: str = "user", category: str = "User Added") -> bool:
-    """Insert a single mapping into the database.
-
-    Returns True if successful, False if duplicate or error.
-    """
+def insert_mapping(ipc_section: str, bns_section: str, 
+                   ipc_full_text: str = "", bns_full_text: str = "", 
+                   notes: str = "", source: str = "user", category: str = "User Added") -> bool:
+    """Insert a single mapping into the database."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute('''
-            INSERT INTO mappings (ipc_section, bns_section, notes, source, category)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (ipc_section, bns_section, notes, source, category))
+            INSERT INTO mappings (ipc_section, bns_section, ipc_full_text, bns_full_text, notes, source, category)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (ipc_section, bns_section, ipc_full_text, bns_full_text, notes, source, category))
 
         conn.commit()
         conn.close()
         return True
 
     except sqlite3.IntegrityError:
-        # Duplicate ipc_section
+        print(f"⚠️ DB Warning: Section {ipc_section} already exists.")
         return False
     except Exception as e:
         print(f"Error inserting mapping: {e}")
@@ -134,9 +135,11 @@ def get_mapping(ipc_section: str) -> Optional[Dict]:
             return {
                 'ipc_section': row[0],
                 'bns_section': row[1],
-                'notes': row[2],
-                'source': row[3],
-                'category': row[4]
+                'ipc_full_text': row[2],
+                'bns_full_text': row[3],
+                'notes': row[4],
+                'source': row[5],
+                'category': row[6]
             }
         return None
 
@@ -158,9 +161,11 @@ def get_all_mappings() -> Dict[str, Dict]:
         for row in rows:
             mappings[row[0]] = {
                 'bns_section': row[1],
-                'notes': row[2],
-                'source': row[3],
-                'category': row[4]
+                'ipc_full_text': row[2],
+                'bns_full_text': row[3],
+                'notes': row[4],
+                'source': row[5],
+                'category': row[6]
             }
         return mappings
 
@@ -182,9 +187,11 @@ def get_mappings_by_category(category: str) -> Dict[str, Dict]:
         for row in rows:
             mappings[row[0]] = {
                 'bns_section': row[1],
-                'notes': row[2],
-                'source': row[3],
-                'category': row[4]
+                'ipc_full_text': row[2],
+                'bns_full_text': row[3],
+                'notes': row[4],
+                'source': row[5],
+                'category': row[6]
             }
         return mappings
 
@@ -246,12 +253,9 @@ def get_metadata() -> Dict:
         print(f"Error getting metadata: {e}")
         return {}
 
-def import_mappings_from_csv(file_path: str) -> Tuple[int, List[str]]:
-    """Import mappings from CSV file.
 
-    Returns (success_count, error_messages).
-    Expected CSV columns: ipc_section, bns_section, notes, source, category
-    """
+def import_mappings_from_csv(file_path: str) -> Tuple[int, List[str]]:
+    """Import mappings from CSV file."""
     errors = []
     success_count = 0
 
@@ -272,15 +276,18 @@ def import_mappings_from_csv(file_path: str) -> Tuple[int, List[str]]:
             try:
                 ipc_section = str(row['ipc_section']).strip()
                 bns_section = str(row['bns_section']).strip()
+                # Safe .get() calls for optional text columns
+                ipc_full_text = str(row.get('ipc_full_text', '')).strip()
+                bns_full_text = str(row.get('bns_full_text', '')).strip()
                 notes = str(row.get('notes', '')).strip()
                 source = str(row.get('source', 'imported')).strip()
                 category = str(row.get('category', 'Imported')).strip()
 
                 cursor.execute('''
                     INSERT OR REPLACE INTO mappings
-                    (ipc_section, bns_section, notes, source, category)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (ipc_section, bns_section, notes, source, category))
+                    (ipc_section, bns_section, ipc_full_text, bns_full_text, notes, source, category)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (ipc_section, bns_section, ipc_full_text, bns_full_text, notes, source, category))
 
                 success_count += 1
 
@@ -295,12 +302,9 @@ def import_mappings_from_csv(file_path: str) -> Tuple[int, List[str]]:
 
     return success_count, errors
 
-def import_mappings_from_excel(file_path: str) -> Tuple[int, List[str]]:
-    """Import mappings from Excel file.
 
-    Returns (success_count, error_messages).
-    Expected columns: ipc_section, bns_section, notes, source, category
-    """
+def import_mappings_from_excel(file_path: str) -> Tuple[int, List[str]]:
+    """Import mappings from Excel file."""
     errors = []
     success_count = 0
 
@@ -321,15 +325,18 @@ def import_mappings_from_excel(file_path: str) -> Tuple[int, List[str]]:
             try:
                 ipc_section = str(row['ipc_section']).strip()
                 bns_section = str(row['bns_section']).strip()
+                # Safe .get() calls for optional text columns
+                ipc_full_text = str(row.get('ipc_full_text', '')).strip()
+                bns_full_text = str(row.get('bns_full_text', '')).strip()
                 notes = str(row.get('notes', '')).strip()
                 source = str(row.get('source', 'imported')).strip()
                 category = str(row.get('category', 'Imported')).strip()
 
                 cursor.execute('''
                     INSERT OR REPLACE INTO mappings
-                    (ipc_section, bns_section, notes, source, category)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (ipc_section, bns_section, notes, source, category))
+                    (ipc_section, bns_section, ipc_full_text, bns_full_text, notes, source, category)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (ipc_section, bns_section, ipc_full_text, bns_full_text, notes, source, category))
 
                 success_count += 1
 
@@ -343,6 +350,7 @@ def import_mappings_from_excel(file_path: str) -> Tuple[int, List[str]]:
         errors.append(f"Error reading Excel file: {e}")
 
     return success_count, errors
+
 
 def export_mappings_to_json(file_path: str) -> bool:
     """Export all mappings to JSON file."""
@@ -362,6 +370,7 @@ def export_mappings_to_json(file_path: str) -> bool:
         print(f"Error exporting to JSON: {e}")
         return False
 
+
 def export_mappings_to_csv(file_path: str) -> bool:
     """Export all mappings to CSV file."""
     try:
@@ -372,6 +381,8 @@ def export_mappings_to_csv(file_path: str) -> bool:
             data.append({
                 'ipc_section': ipc_section,
                 'bns_section': mapping['bns_section'],
+                'ipc_full_text': mapping.get('ipc_full_text', ''),
+                'bns_full_text': mapping.get('bns_full_text', ''),
                 'notes': mapping['notes'],
                 'source': mapping['source'],
                 'category': mapping['category']
