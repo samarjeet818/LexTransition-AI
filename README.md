@@ -114,6 +114,15 @@ To use Grounded Fact-Check, upload law PDFs in the Fact-Check page (or drop them
 
 ---
 
+## OCR Benchmark Harness
+
+Use `scripts/ocr_benchmark.py` with a CSV dataset (`image_path,ground_truth`) to compute:
+- Character Error Rate (CER)
+- Keyword Recall
+
+Example:
+- `python scripts/ocr_benchmark.py --dataset data/ocr_dataset.csv --report ocr_report.md`
+
 ## Optional features (embeddings & local LLM)
 
 ### Embedding-based RAG (FAISS + sentence-transformers)
